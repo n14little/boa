@@ -21,9 +21,11 @@ use std::{
     collections::HashSet,
     f64::NAN,
     fmt::{self, Display},
-    ops::{Add, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, Mul, Not, Rem, Shl, Shr, Sub},
+    ops::{Add, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, Mul, Not, Rem, Shl, Shr, Sub, Neg},
     str::FromStr,
 };
+
+use crate::BigInt;
 
 /// The result of a Javascript expression is represented like this so it can succeed (`Ok`) or fail (`Err`)
 #[must_use]
@@ -51,6 +53,8 @@ pub enum ValueData {
     Rational(f64),
     /// `Number` - A 32-bit integer, such as `42`
     Integer(i32),
+    /// ---
+    BigInt(BigInt),
     /// `Object` - An object, such as `Math`, represented by a binary tree of string keys to Javascript values
     Object(GcCell<Object>),
     /// `Function` - A runnable block of code, such as `Math.sqrt`, which can take some variables and return a useful value or act upon an object
@@ -169,6 +173,13 @@ impl ValueData {
         }
     }
 
+    fn is_bigint(&self) -> bool {
+        match self {
+            Self::BigInt(_) => true,
+            _ => false,
+        }
+    }
+
     /// Returns true if the value is a number
     pub fn is_num(&self) -> bool {
         self.is_double()
@@ -200,6 +211,7 @@ impl ValueData {
             Self::Rational(n) if n != 0.0 && !n.is_nan() => true,
             Self::Integer(n) if n != 0 => true,
             Self::Boolean(v) => v,
+            Self::BigInt(ref n) if *n != 0 => true,
             _ => false,
         }
     }
@@ -216,6 +228,9 @@ impl ValueData {
             Self::Boolean(true) => 1.0,
             Self::Boolean(false) | ValueData::Null => 0.0,
             Self::Integer(num) => f64::from(num),
+            Self::BigInt(_) => {
+                panic!("TypeError: Cannot mix BigInt and other types, use explicit conversions")
+            }
         }
     }
 
@@ -235,6 +250,9 @@ impl ValueData {
             Self::Rational(num) => num as i32,
             Self::Boolean(true) => 1,
             Self::Integer(num) => num,
+            Self::BigInt(_) => {
+                panic!("TypeError: Cannot mix BigInt and other types, use explicit conversions")
+            }
         }
     }
 
@@ -625,6 +643,10 @@ impl ValueData {
                 JSONNumber::from_f64(num).expect("Could not convert to JSONNumber"),
             ),
             Self::Integer(val) => JSONValue::Number(JSONNumber::from(val)),
+            Self::BigInt(_) => {
+                // TODO: throw TypeError
+                panic!("TypeError: \"BigInt value can't be serialized in JSON\"");
+            }
         }
     }
 
@@ -647,6 +669,7 @@ impl ValueData {
                     "function"
                 }
             }
+            Self::BigInt(_) => "bigint",
         }
     }
 
@@ -886,21 +909,27 @@ impl Display for ValueData {
                     write!(f, ") {}", rf.node)
                 }
             },
+            Self::BigInt(ref num) => write!(f, "{}n", num),
         }
     }
 }
 
 impl PartialEq for ValueData {
     fn eq(&self, other: &Self) -> bool {
-        match (self.clone(), other.clone()) {
+        match (self, other) {
             // TODO: fix this
             // _ if self.ptr.to_inner() == &other.ptr.to_inner() => true,
             _ if self.is_null_or_undefined() && other.is_null_or_undefined() => true,
             (Self::String(_), _) | (_, Self::String(_)) => self.to_string() == other.to_string(),
             (Self::Boolean(a), Self::Boolean(b)) if a == b => true,
+            (Self::BigInt(ref a), Self::BigInt(ref b)) if a == b => true,
+            (Self::BigInt(ref a), Self::Integer(ref b)) if *a == *b => true,
+            (Self::Integer(ref a), Self::BigInt(ref b)) if *a == *b => true,
+            (Self::BigInt(ref a), Self::Rational(b)) if !(b.is_nan() || b.is_infinite()) => a == b,
+            (Self::Rational(a), Self::BigInt(ref b)) if !(a.is_nan() || a.is_infinite()) => a == b,
             (Self::Rational(a), Self::Rational(b)) if a == b && !a.is_nan() && !b.is_nan() => true,
-            (Self::Rational(a), _) if a == other.to_num() => true,
-            (_, Self::Rational(a)) if a == self.to_num() => true,
+            (Self::Rational(a), _) if *a == other.to_num() => true,
+            (_, Self::Rational(a)) if *a == self.to_num() => true,
             (Self::Integer(a), Self::Integer(b)) if a == b => true,
             _ => false,
         }
@@ -915,6 +944,7 @@ impl Add for ValueData {
                 Self::String(format!("{}{}", s.clone(), &o.to_string()))
             }
             (ref s, Self::String(ref o)) => Self::String(format!("{}{}", s.to_string(), o)),
+            (Self::BigInt(ref n1), Self::BigInt(ref n2)) => Self::BigInt(n1.clone() + n2.clone()),
             (ref s, ref o) => Self::Rational(s.to_num() + o.to_num()),
         }
     }
@@ -922,61 +952,109 @@ impl Add for ValueData {
 impl Sub for ValueData {
     type Output = Self;
     fn sub(self, other: Self) -> Self {
-        Self::Rational(self.to_num() - other.to_num())
+        match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() - b.clone()),
+            (a, b) => Self::Rational(a.to_num() - b.to_num()),
+        }
     }
 }
 impl Mul for ValueData {
     type Output = Self;
     fn mul(self, other: Self) -> Self {
-        Self::Rational(self.to_num() * other.to_num())
+        match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() * b.clone()),
+            (a, b) => Self::Rational(a.to_num() * b.to_num()),
+        }
     }
 }
 impl Div for ValueData {
     type Output = Self;
     fn div(self, other: Self) -> Self {
-        Self::Rational(self.to_num() / other.to_num())
+        match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() / b.clone()),
+            (a, b) => Self::Rational(a.to_num() / b.to_num()),
+        }
     }
 }
 impl Rem for ValueData {
     type Output = Self;
     fn rem(self, other: Self) -> Self {
-        Self::Rational(self.to_num() % other.to_num())
+        match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() % b.clone()),
+            (a, b) => Self::Rational(a.to_num() % b.to_num()),
+        }
     }
 }
 impl BitAnd for ValueData {
     type Output = Self;
     fn bitand(self, other: Self) -> Self {
-        Self::Integer(self.to_int() & other.to_int())
+        match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() & b.clone()),
+            (a, b) => Self::Integer(a.to_int() & b.to_int())
+        }
     }
 }
 impl BitOr for ValueData {
     type Output = Self;
     fn bitor(self, other: Self) -> Self {
-        Self::Integer(self.to_int() | other.to_int())
+    	match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() | b.clone()),
+            (a, b) => Self::Integer(a.to_int() | b.to_int())
+        }
     }
 }
 impl BitXor for ValueData {
     type Output = Self;
     fn bitxor(self, other: Self) -> Self {
-        Self::Integer(self.to_int() ^ other.to_int())
+    	match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() ^ b.clone()),
+            (a, b) => Self::Integer(a.to_int() ^ b.to_int())
+        }
     }
 }
 impl Shl for ValueData {
     type Output = Self;
     fn shl(self, other: Self) -> Self {
-        Self::Integer(self.to_int() << other.to_int())
+    	match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() << b.clone()),
+            (a, b) => Self::Integer(a.to_int() << b.to_int())
+        }
     }
 }
 impl Shr for ValueData {
     type Output = Self;
     fn shr(self, other: Self) -> Self {
-        Self::Integer(self.to_int() >> other.to_int())
+    	match (self, other) {
+            (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() >> b.clone()),
+            (a, b) => Self::Integer(a.to_int() >> b.to_int())
+        }
     }
 }
 impl Not for ValueData {
     type Output = Self;
     fn not(self) -> Self {
         Self::Boolean(!self.is_true())
+    }
+}
+
+impl Neg for ValueData {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Self::Object(_) | Self::Symbol(_) | Self::Undefined | Self::Function(_) => Self::Rational(NAN),
+            Self::String(ref str) => Self::Rational(match f64::from_str(str) {
+                Ok(num) => -num,
+                Err(_) => NAN,
+            }),
+            Self::Rational(num) => Self::Rational(-num),
+            Self::Integer(num) => Self::Rational(-f64::from(num)),
+            Self::Boolean(true) => Self::Integer(1),
+            Self::Boolean(false) | ValueData::Null => Self::Integer(0),
+            Self::BigInt(ref num) => {
+                Self::BigInt(-num.clone())
+            }
+        }
     }
 }
 
@@ -1058,6 +1136,21 @@ impl ToValue for i32 {
 impl FromValue for i32 {
     fn from_value(v: Value) -> Result<Self, &'static str> {
         Ok(v.to_int())
+    }
+}
+
+impl ToValue for BigInt {
+    fn to_value(&self) -> Value {
+        Gc::new(ValueData::BigInt(self.clone()))
+    }
+}
+
+impl FromValue for BigInt {
+    fn from_value(v: Value) -> Result<Self, &'static str> {
+        match *v {
+            ValueData::BigInt(ref num) => Ok(num.clone()),
+            _ => Err("could not convert to BigInt"),
+        }
     }
 }
 

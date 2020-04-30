@@ -41,6 +41,7 @@ fn to_number(value: &Value) -> Value {
         ValueData::Object(ref o) => (o).deref().borrow().get_internal_slot("NumberData"),
         ValueData::Null => to_value(0),
         ValueData::Rational(n) => to_value(n),
+        ValueData::BigInt(_) => unimplemented!("to_number not impl."),
         ValueData::String(ref s) => match s.parse::<f64>() {
             Ok(n) => to_value(n),
             Err(_) => to_value(f64::NAN),

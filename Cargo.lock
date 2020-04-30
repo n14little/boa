@@ -10,6 +10,7 @@ dependencies = [
  "jemallocator",
  "rand",
  "regex",
+ "rug",
  "serde",
  "serde_json",
 ]
@@ -48,6 +49,12 @@ name = "autocfg"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
+
+[[package]]
+name = "az"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41a6b78289a33e09b00818ca8c90ab17c5dabb6e74f4b29a6de679c0e0886ade"
 
 [[package]]
 name = "bitflags"
@@ -275,6 +282,16 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
+]
+
+[[package]]
+name = "gmp-mpfr-sys"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63d7f805cf9df081683d463f62864bda8b8e3ce7162a8e11cd0c49f27b8ce89b"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]
@@ -566,6 +583,18 @@ name = "regex-syntax"
 version = "0.6.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fe5bd57d1d7414c6b5ed48563a2c855d995ff777729dcd91c369ec7fea395ae"
+
+[[package]]
+name = "rug"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72315b6d9cb7d886fb99724330c47ceb29e923df657c31da3849fe88c0ded710"
+dependencies = [
+ "az",
+ "gmp-mpfr-sys",
+ "libc",
+ "serde",
+]
 
 [[package]]
 name = "rustc_version"

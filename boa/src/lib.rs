@@ -93,3 +93,168 @@ pub fn exec(src: &str) -> String {
     let mut engine: Interpreter = Executor::new(realm);
     forward(&mut engine, src)
 }
+
+/// FIXME: Temporary spot for BigInt structure
+use gc::{unsafe_empty_trace, Finalize, Trace};
+use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, PartialEq)]
+pub struct BigInt(rug::Integer);
+
+impl BigInt {
+    #[inline]
+    pub fn into_inner(self) -> rug::Integer {
+        self.0
+    }
+}
+
+impl std::ops::Add for BigInt {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        BigInt(self.0 + other.0)
+    }
+}
+
+impl std::ops::Sub for BigInt {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        BigInt(self.0 - other.0)
+    }
+}
+
+impl std::ops::Mul for BigInt {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self::Output {
+        BigInt(self.0 * other.0)
+    }
+}
+
+impl std::ops::Div for BigInt {
+    type Output = Self;
+
+    fn div(self, other: Self) -> Self::Output {
+        BigInt(self.0 / other.0)
+    }
+}
+
+impl std::ops::Rem for BigInt {
+    type Output = Self;
+
+    fn rem(self, other: Self) -> Self::Output {
+        BigInt(self.0 % other.0)
+    }
+}
+
+impl std::ops::BitAnd for BigInt {
+    type Output = Self;
+
+    fn bitand(self, other: Self) -> Self::Output {
+        BigInt(self.0 & other.0)
+    }
+}
+
+impl std::ops::BitOr for BigInt {
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self::Output {
+        BigInt(self.0 | other.0)
+    }
+}
+
+
+impl std::ops::BitXor for BigInt {
+    type Output = Self;
+
+    fn bitxor(self, other: Self) -> Self::Output {
+        BigInt(self.0 | other.0)
+    }
+}
+
+impl std::ops::Shr for BigInt {
+    type Output = Self;
+
+    fn shr(self, other: Self) -> Self::Output {
+        let other = other.0.to_i32().unwrap_or(std::i32::MAX);
+        BigInt(self.0 >> other)
+    }
+}
+
+impl std::ops::Shl for BigInt {
+    type Output = Self;
+
+    fn shl(self, other: Self) -> Self::Output {
+        match other.0.to_i32() {
+            Some(n) => BigInt(self.0 << n),
+            None => panic!("RangeError: Maximum BigInt size exceeded")
+        }
+        
+    }
+}
+
+impl std::ops::Neg for BigInt {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self(-self.0)
+    }
+}
+
+impl PartialEq<i32> for BigInt {
+    fn eq(&self, other: &i32) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<BigInt> for i32 {
+    fn eq(&self, other: &BigInt) -> bool {
+        *self == other.0
+    }
+}
+
+impl PartialEq<f64> for BigInt {
+    fn eq(&self, other: &f64) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<BigInt> for f64 {
+    fn eq(&self, other: &BigInt) -> bool {
+        *self == other.0
+    }
+}
+
+impl std::fmt::Debug for BigInt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::fmt::Display for BigInt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Deref for BigInt {
+    type Target = rug::Integer;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for BigInt {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Finalize for BigInt {}
+unsafe impl Trace for BigInt {
+    unsafe_empty_trace!();
+}

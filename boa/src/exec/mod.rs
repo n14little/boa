@@ -76,6 +76,7 @@ impl Executor for Interpreter {
             Node::Const(Const::Undefined) => Ok(Gc::new(ValueData::Undefined)),
             Node::Const(Const::Num(num)) => Ok(to_value(num)),
             Node::Const(Const::Int(num)) => Ok(to_value(num)),
+            Node::Const(Const::BigInt(ref num)) => Ok(to_value(num.clone())),
             // we can't move String from Const into value, because const is a garbage collected value
             // Which means Drop() get's called on Const, but str will be gone at that point.
             // Do Const values need to be garbage collected? We no longer need them once we've generated Values
@@ -299,7 +300,7 @@ impl Executor for Interpreter {
                 let v_r_a = self.run(a)?;
                 let v_a = (*v_r_a).clone();
                 Ok(match *op {
-                    UnaryOp::Minus => to_value(-v_a.to_num()),
+                    UnaryOp::Minus => Gc::new(-v_a),
                     UnaryOp::Plus => to_value(v_a.to_num()),
                     UnaryOp::Not => Gc::new(!v_a),
                     UnaryOp::Tilde => {
@@ -539,6 +540,7 @@ impl Executor for Interpreter {
                     ValueData::Rational(_) | ValueData::Integer(_) => "number",
                     ValueData::String(_) => "string",
                     ValueData::Function(_) => "function",
+                    ValueData::BigInt(_) => unimplemented!("not implemented"),
                 }))
             }
             Node::StatementList(ref list) => {
@@ -780,6 +782,8 @@ impl Interpreter {
                 Ok(string_obj)
             }
             ValueData::Object(_) | ValueData::Symbol(_) => Ok(value.clone()),
+            // FIXME: -----\/
+            ValueData::BigInt(_) => unimplemented!("Bigint"),
         }
     }
 

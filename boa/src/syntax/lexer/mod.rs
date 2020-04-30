@@ -394,11 +394,11 @@ impl<'a> Lexer<'a> {
             return Err(e);
         };
 
+        use crate::BigInt;
         let num = match kind {
-                NumericKind::BigInt(_) => {
-                    // TODO: Implement bigint.
-                    // NOTE: implementation goes here.
-                    unimplemented!("BigInt");
+                NumericKind::BigInt(base) => {
+                    NumericLiteral::BigInt(
+                        BigInt(rug::Integer::from_str_radix(&buf, base as i32).expect("Could not conver to BigInt")))
                 }
                 NumericKind::Rational /* base: 10 */ => {
                     NumericLiteral::Rational(
