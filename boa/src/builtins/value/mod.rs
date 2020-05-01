@@ -21,7 +21,7 @@ use std::{
     collections::HashSet,
     f64::NAN,
     fmt::{self, Display},
-    ops::{Add, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, Mul, Not, Rem, Shl, Shr, Sub, Neg},
+    ops::{Add, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, Mul, Neg, Not, Rem, Shl, Shr, Sub},
     str::FromStr,
 };
 
@@ -169,13 +169,6 @@ impl ValueData {
         match *self {
             Self::Integer(_) => true,
             Self::Rational(n) if is_racional_intiger(n) => true,
-            _ => false,
-        }
-    }
-
-    fn is_bigint(&self) -> bool {
-        match self {
-            Self::BigInt(_) => true,
             _ => false,
         }
     }
@@ -990,43 +983,43 @@ impl BitAnd for ValueData {
     fn bitand(self, other: Self) -> Self {
         match (self, other) {
             (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() & b.clone()),
-            (a, b) => Self::Integer(a.to_int() & b.to_int())
+            (a, b) => Self::Integer(a.to_int() & b.to_int()),
         }
     }
 }
 impl BitOr for ValueData {
     type Output = Self;
     fn bitor(self, other: Self) -> Self {
-    	match (self, other) {
+        match (self, other) {
             (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() | b.clone()),
-            (a, b) => Self::Integer(a.to_int() | b.to_int())
+            (a, b) => Self::Integer(a.to_int() | b.to_int()),
         }
     }
 }
 impl BitXor for ValueData {
     type Output = Self;
     fn bitxor(self, other: Self) -> Self {
-    	match (self, other) {
+        match (self, other) {
             (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() ^ b.clone()),
-            (a, b) => Self::Integer(a.to_int() ^ b.to_int())
+            (a, b) => Self::Integer(a.to_int() ^ b.to_int()),
         }
     }
 }
 impl Shl for ValueData {
     type Output = Self;
     fn shl(self, other: Self) -> Self {
-    	match (self, other) {
+        match (self, other) {
             (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() << b.clone()),
-            (a, b) => Self::Integer(a.to_int() << b.to_int())
+            (a, b) => Self::Integer(a.to_int() << b.to_int()),
         }
     }
 }
 impl Shr for ValueData {
     type Output = Self;
     fn shr(self, other: Self) -> Self {
-    	match (self, other) {
+        match (self, other) {
             (Self::BigInt(ref a), Self::BigInt(ref b)) => Self::BigInt(a.clone() >> b.clone()),
-            (a, b) => Self::Integer(a.to_int() >> b.to_int())
+            (a, b) => Self::Integer(a.to_int() >> b.to_int()),
         }
     }
 }
@@ -1042,7 +1035,9 @@ impl Neg for ValueData {
 
     fn neg(self) -> Self::Output {
         match self {
-            Self::Object(_) | Self::Symbol(_) | Self::Undefined | Self::Function(_) => Self::Rational(NAN),
+            Self::Object(_) | Self::Symbol(_) | Self::Undefined | Self::Function(_) => {
+                Self::Rational(NAN)
+            }
             Self::String(ref str) => Self::Rational(match f64::from_str(str) {
                 Ok(num) => -num,
                 Err(_) => NAN,
@@ -1051,9 +1046,7 @@ impl Neg for ValueData {
             Self::Integer(num) => Self::Rational(-f64::from(num)),
             Self::Boolean(true) => Self::Integer(1),
             Self::Boolean(false) | ValueData::Null => Self::Integer(0),
-            Self::BigInt(ref num) => {
-                Self::BigInt(-num.clone())
-            }
+            Self::BigInt(ref num) => Self::BigInt(-num.clone()),
         }
     }
 }

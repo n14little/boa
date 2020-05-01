@@ -96,8 +96,10 @@ pub fn exec(src: &str) -> String {
 
 /// FIXME: Temporary spot for BigInt structure
 use gc::{unsafe_empty_trace, Finalize, Trace};
-use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, PartialEq)]
@@ -166,7 +168,6 @@ impl std::ops::BitOr for BigInt {
     }
 }
 
-
 impl std::ops::BitXor for BigInt {
     type Output = Self;
 
@@ -190,9 +191,8 @@ impl std::ops::Shl for BigInt {
     fn shl(self, other: Self) -> Self::Output {
         match other.0.to_i32() {
             Some(n) => BigInt(self.0 << n),
-            None => panic!("RangeError: Maximum BigInt size exceeded")
+            None => panic!("RangeError: Maximum BigInt size exceeded"),
         }
-        
     }
 }
 
