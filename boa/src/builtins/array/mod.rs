@@ -756,7 +756,7 @@ pub fn find_index(this: &mut Value, args: &[Value], interpreter: &mut Interprete
         }
     }
 
-    Ok(Value::rational(f64::from(-1)))
+    Ok(Value::rational(-1_f64))
 }
 
 /// `Array.prototype.fill( value[, start[, end]] )`
