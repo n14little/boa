@@ -50,8 +50,8 @@ impl Value {
     }
 
     #[inline]
-    pub fn string(value: String) -> Self {
-        Self(Gc::new(ValueData::String(value)))
+    pub fn string<S>(value: S) -> Self where S: Into<String> {
+        Self(Gc::new(ValueData::String(value.into())))
     }
 
     #[inline]
