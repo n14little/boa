@@ -13,7 +13,7 @@
 use crate::{
     builtins::{
         object::{internal_methods_trait::ObjectInternalMethods, Object, ObjectKind, PROTOTYPE},
-        value::{to_value, undefined, ResultValue, Value, ValueData},
+        value::{to_value, ResultValue, Value, ValueData},
     },
     exec::Interpreter,
 };
@@ -33,7 +33,7 @@ pub fn make_error(this: &mut Value, args: &[Value], _: &mut Interpreter) -> Resu
     // This value is used by console.log and other routines to match Object type
     // to its Javascript Identifier (global constructor method name)
     this.set_kind(ObjectKind::Error);
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `Error.prototype.toString()`

@@ -8,7 +8,7 @@
 //! More info:  <https://tc39.es/ecma262/#sec-global-environment-records>
 
 use crate::{
-    builtins::value::{Value, ValueData},
+    builtins::value::Value,
     environment::{
         declarative_environment_record::DeclarativeEnvironmentRecord,
         environment_record_trait::EnvironmentRecordTrait,
@@ -16,7 +16,7 @@ use crate::{
         object_environment_record::ObjectEnvironmentRecord,
     },
 };
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Trace};
 use rustc_hash::FxHashSet;
 
 #[derive(Debug, Trace, Finalize, Clone)]
@@ -61,7 +61,7 @@ impl GlobalEnvironmentRecord {
         let extensible = global_object.is_extensible();
         if !has_property && extensible {
             obj_rec.create_mutable_binding(name.clone(), deletion);
-            obj_rec.initialize_binding(&name, Gc::new(ValueData::Undefined));
+            obj_rec.initialize_binding(&name, Value::undefined());
         }
 
         let var_declared_names = &mut self.var_names;
@@ -170,7 +170,7 @@ impl EnvironmentRecordTrait for GlobalEnvironmentRecord {
     }
 
     fn with_base_object(&self) -> Value {
-        Gc::new(ValueData::Undefined)
+        Value::undefined()
     }
 
     fn get_outer_environment(&self) -> Option<Environment> {

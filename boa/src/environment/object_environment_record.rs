@@ -7,16 +7,13 @@
 //! More info:  [Object Records](https://tc39.es/ecma262/#sec-object-environment-records)
 
 use crate::{
-    builtins::{
-        property::Property,
-        value::{Value, ValueData},
-    },
+    builtins::{property::Property, value::Value},
     environment::{
         environment_record_trait::EnvironmentRecordTrait,
         lexical_environment::{Environment, EnvironmentType},
     },
 };
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Trace};
 
 #[derive(Debug, Trace, Finalize, Clone)]
 pub struct ObjectEnvironmentRecord {
@@ -42,7 +39,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
         // only for it to be replace with the real value later. We could just add the name to a Vector instead
         let bindings = &mut self.bindings;
         let prop = Property::default()
-            .value(Gc::new(ValueData::Undefined))
+            .value(Value::undefined())
             .writable(true)
             .enumerable(true)
             .configurable(deletion);
@@ -77,7 +74,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
                 // TODO: throw error here
                 // Error handling not implemented yet
             }
-            Gc::new(ValueData::Undefined)
+            Value::undefined()
         }
     }
 
@@ -101,7 +98,7 @@ impl EnvironmentRecordTrait for ObjectEnvironmentRecord {
             return self.bindings.clone();
         }
 
-        Gc::new(ValueData::Undefined)
+        Value::undefined()
     }
 
     fn get_outer_environment(&self) -> Option<Environment> {

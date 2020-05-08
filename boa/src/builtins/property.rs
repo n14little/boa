@@ -219,10 +219,10 @@ mod test {
 
     #[test]
     fn is_property_key_test() {
-        let v = Value::new(ValueData::String(String::from("Boop")));
+        let v = Value::string(String::from("Boop"));
         assert!(Property::is_property_key(&v));
 
-        let v = Value::new(ValueData::Boolean(true));
+        let v = Value::boolean(true);
         assert!(!Property::is_property_key(&v));
     }
 }

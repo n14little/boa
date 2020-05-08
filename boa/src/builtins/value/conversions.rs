@@ -27,7 +27,7 @@ impl FromValue for Value {
 
 impl ToValue for String {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::String(self.clone()))
+        Value::string(self.clone())
     }
 }
 
@@ -39,15 +39,13 @@ impl FromValue for String {
 
 impl<'s> ToValue for &'s str {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::String(
-            String::from_str(*self).expect("Could not convert string to self to String"),
-        ))
+        Value::string((*self).to_string())
     }
 }
 
 impl ToValue for char {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::String(self.to_string()))
+        Value::string(self.to_string())
     }
 }
 impl FromValue for char {
@@ -61,7 +59,7 @@ impl FromValue for char {
 
 impl ToValue for f64 {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::Rational(*self))
+        Value::rational(*self)
     }
 }
 impl FromValue for f64 {
@@ -72,7 +70,7 @@ impl FromValue for f64 {
 
 impl ToValue for i32 {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::Integer(*self))
+        Value::integer(*self)
     }
 }
 impl FromValue for i32 {
@@ -83,7 +81,7 @@ impl FromValue for i32 {
 
 impl ToValue for usize {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::Integer(*self as i32))
+        Value::integer(*self as i32)
     }
 }
 impl FromValue for usize {
@@ -94,7 +92,7 @@ impl FromValue for usize {
 
 impl ToValue for bool {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::Boolean(*self))
+        Value::boolean(*self)
     }
 }
 impl FromValue for bool {
@@ -137,13 +135,15 @@ impl<T: FromValue> FromValue for Vec<T> {
 
 impl ToValue for Object {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::Object(Box::new(GcCell::new(self.clone()))))
+        Value(Gc::new(ValueData::Object(Box::new(GcCell::new(
+            self.clone(),
+        )))))
     }
 }
 
 impl FromValue for Object {
     fn from_value(v: Value) -> Result<Self, &'static str> {
-        match *v {
+        match v.data() {
             ValueData::Object(ref obj) => Ok(obj.clone().into_inner()),
             _ => Err("Value is not a valid object"),
         }
@@ -152,7 +152,7 @@ impl FromValue for Object {
 
 impl ToValue for JSONValue {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::from_json(self.clone()))
+        Value::from_json(self.clone())
     }
 }
 
@@ -164,7 +164,7 @@ impl FromValue for JSONValue {
 
 impl ToValue for () {
     fn to_value(&self) -> Value {
-        Gc::new(ValueData::Null)
+        Value::null()
     }
 }
 impl FromValue for () {
@@ -177,7 +177,7 @@ impl<T: ToValue> ToValue for Option<T> {
     fn to_value(&self) -> Value {
         match *self {
             Some(ref v) => v.to_value(),
-            None => Gc::new(ValueData::Null),
+            None => Value::null(),
         }
     }
 }

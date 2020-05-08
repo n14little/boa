@@ -10,7 +10,6 @@ use crate::builtins::{
     property::Property,
     value::{same_value, to_value, Value, ValueData},
 };
-use gc::Gc;
 use std::borrow::Borrow;
 use std::ops::Deref;
 
@@ -108,7 +107,7 @@ pub trait ObjectInternalMethods {
             // parent will either be null or an Object
             let parent = self.get_prototype_of();
             if parent.is_null() {
-                return Gc::new(ValueData::Undefined);
+                return Value::undefined();
             }
 
             let parent_obj = Object::from(&parent).expect("Failed to get object");
@@ -122,11 +121,11 @@ pub trait ObjectInternalMethods {
 
         let getter = desc.get.clone();
         if getter.is_none() || getter.expect("Failed to get object").is_undefined() {
-            return Gc::new(ValueData::Undefined);
+            return Value::undefined();
         }
 
         // TODO!!!!! Call getter from here
-        Gc::new(ValueData::Undefined)
+        Value::undefined()
     }
 
     /// [[Set]]

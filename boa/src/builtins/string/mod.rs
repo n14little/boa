@@ -17,11 +17,10 @@ use crate::{
         object::{internal_methods_trait::ObjectInternalMethods, Object, ObjectKind, PROTOTYPE},
         property::Property,
         regexp::{make_regexp, match_all as regexp_match_all, r#match as regexp_match},
-        value::{from_value, to_value, undefined, ResultValue, Value, ValueData},
+        value::{from_value, to_value, ResultValue, Value, ValueData},
     },
     exec::Interpreter,
 };
-use gc::Gc;
 use regex::Regex;
 use std::{
     cmp::{max, min},
@@ -55,7 +54,7 @@ pub fn make_string(this: &mut Value, args: &[Value], _: &mut Interpreter) -> Res
 pub fn call_string(_: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     let arg = match args.get(0) {
         Some(v) => v.clone(),
-        None => undefined(),
+        None => Value::undefined(),
     };
 
     if arg.is_undefined() {
@@ -1007,7 +1006,7 @@ pub fn value_of(this: &mut Value, args: &[Value], ctx: &mut Interpreter) -> Resu
 pub fn match_all(this: &mut Value, args: &[Value], ctx: &mut Interpreter) -> ResultValue {
     let mut re: Value = match args.get(0) {
         Some(arg) => {
-            if arg == &Gc::new(ValueData::Null) {
+            if arg == &Value::null() {
                 make_regexp(
                     &mut to_value(Object::default()),
                     &[
@@ -1016,10 +1015,10 @@ pub fn match_all(this: &mut Value, args: &[Value], ctx: &mut Interpreter) -> Res
                     ],
                     ctx,
                 )
-            } else if arg == &undefined() {
+            } else if arg == &Value::undefined() {
                 make_regexp(
                     &mut to_value(Object::default()),
-                    &[undefined(), to_value(String::from("g"))],
+                    &[Value::undefined(), to_value(String::from("g"))],
                     ctx,
                 )
             } else {

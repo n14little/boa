@@ -17,7 +17,7 @@ use crate::{
     builtins::{
         function::Function,
         property::Property,
-        value::{from_value, same_value, to_value, undefined, ResultValue, Value, ValueData},
+        value::{from_value, same_value, to_value, ResultValue, Value, ValueData},
     },
     exec::Interpreter,
 };
@@ -132,7 +132,7 @@ impl ObjectInternalMethods for Object {
     fn get_internal_slot(&self, name: &str) -> Value {
         match self.internal_slots.get(name) {
             Some(v) => v.clone(),
-            None => Gc::new(ValueData::Null),
+            None => Value::null(),
         }
     }
 
@@ -528,9 +528,9 @@ unsafe impl Trace for ObjectKind {
 pub fn make_object(_: &mut Value, args: &[Value], ctx: &mut Interpreter) -> ResultValue {
     if let Some(arg) = args.get(0) {
         if !arg.is_null_or_undefined() {
-            return Ok(Gc::new(ValueData::Object(Box::new(GcCell::new(
+            return Ok(Value(Gc::new(ValueData::Object(Box::new(GcCell::new(
                 Object::from(arg).unwrap(),
-            )))));
+            ))))));
         }
     }
     let global = &ctx.realm.global_obj;
@@ -562,7 +562,7 @@ pub fn define_property(_: &mut Value, args: &[Value], _: &mut Interpreter) -> Re
     let desc = from_value::<Property>(args.get(2).expect("Cannot get object").clone())
         .expect("Cannot get object");
     obj.set_prop(prop, desc);
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `Object.prototype.toString()`

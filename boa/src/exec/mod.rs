@@ -22,7 +22,6 @@ use crate::{
         op::{AssignOp, BinOp, BitOp, CompOp, LogOp, NumOp, UnaryOp},
     },
 };
-use gc::Gc;
 use std::{
     borrow::{Borrow, BorrowMut},
     ops::Deref,
@@ -44,8 +43,8 @@ pub struct Interpreter {
     pub realm: Realm,
 }
 
-fn exec_assign_op(op: &AssignOp, v_a: ValueData, v_b: ValueData) -> Value {
-    Gc::new(match *op {
+fn exec_assign_op(op: &AssignOp, v_a: Value, v_b: Value) -> Value {
+    match *op {
         AssignOp::Add => v_a + v_b,
         AssignOp::Sub => v_a - v_b,
         AssignOp::Mul => v_a * v_b,
@@ -57,7 +56,7 @@ fn exec_assign_op(op: &AssignOp, v_a: ValueData, v_b: ValueData) -> Value {
         AssignOp::Xor => v_a ^ v_b,
         AssignOp::Shl => v_a << v_b,
         AssignOp::Shr => v_a << v_b,
-    })
+    }
 }
 
 impl Executor for Interpreter {
@@ -71,15 +70,15 @@ impl Executor for Interpreter {
     #[allow(clippy::match_same_arms)]
     fn run(&mut self, node: &Node) -> ResultValue {
         match *node {
-            Node::Const(Const::Null) => Ok(to_value(None::<()>)),
-            Node::Const(Const::Undefined) => Ok(Gc::new(ValueData::Undefined)),
-            Node::Const(Const::Num(num)) => Ok(to_value(num)),
-            Node::Const(Const::Int(num)) => Ok(to_value(num)),
+            Node::Const(Const::Null) => Ok(Value::null()),
+            Node::Const(Const::Undefined) => Ok(Value::undefined()),
+            Node::Const(Const::Num(num)) => Ok(Value::rational(num)),
+            Node::Const(Const::Int(num)) => Ok(Value::integer(num)),
             // we can't move String from Const into value, because const is a garbage collected value
             // Which means Drop() get's called on Const, but str will be gone at that point.
             // Do Const values need to be garbage collected? We no longer need them once we've generated Values
-            Node::Const(Const::String(ref str)) => Ok(to_value(str.to_owned())),
-            Node::Const(Const::Bool(val)) => Ok(to_value(val)),
+            Node::Const(Const::String(ref value)) => Ok(Value::string(value.to_string())),
+            Node::Const(Const::Bool(value)) => Ok(Value::boolean(value)),
             Node::Block(ref es) => {
                 {
                     let env = &mut self.realm.environment;
@@ -88,7 +87,7 @@ impl Executor for Interpreter {
                     )));
                 }
 
-                let mut obj = to_value(None::<()>);
+                let mut obj = Value::null();
                 for e in es.iter() {
                     let val = self.run(e)?;
                     // early return
@@ -160,7 +159,7 @@ impl Executor for Interpreter {
                 fnct_result
             }
             Node::WhileLoop(ref cond, ref expr) => {
-                let mut result = Gc::new(ValueData::Undefined);
+                let mut result = Value::undefined();
                 while self.run(cond)?.borrow().is_true() {
                     result = self.run(expr)?;
                 }
@@ -189,12 +188,12 @@ impl Executor for Interpreter {
                     }
                 }
 
-                Ok(Gc::new(ValueData::Undefined))
+                Ok(Value::undefined())
             }
             Node::If(ref cond, ref expr, None) => Ok(if self.run(cond)?.borrow().is_true() {
                 self.run(expr)?
             } else {
-                Gc::new(ValueData::Undefined)
+                Value::undefined()
             }),
             Node::If(ref cond, ref expr, Some(ref else_e)) => {
                 Ok(if self.run(cond)?.borrow().is_true() {
@@ -205,7 +204,7 @@ impl Executor for Interpreter {
             }
             Node::Switch(ref val_e, ref vals, ref default) => {
                 let val = self.run(val_e)?;
-                let mut result = Gc::new(ValueData::Null);
+                let mut result = Value::null();
                 let mut matched = false;
                 for tup in vals.iter() {
                     let cond = &tup.0;
@@ -260,7 +259,7 @@ impl Executor for Interpreter {
             }
             Node::ArrayDecl(ref arr) => {
                 let array = array::new_array(self)?;
-                let mut elements: Vec<Value> = vec![];
+                let mut elements = Vec::new();
                 for elem in arr.iter() {
                     if let Node::Spread(ref x) = elem.deref() {
                         let val = self.run(x)?;
@@ -337,40 +336,35 @@ impl Executor for Interpreter {
                 Ok(val)
             }
             Node::BinOp(BinOp::Num(ref op), ref a, ref b) => {
-                let v_r_a = self.run(a)?;
-                let v_r_b = self.run(b)?;
-                let v_a = (*v_r_a).clone();
-                let v_b = (*v_r_b).clone();
-                Ok(Gc::new(match *op {
+                let v_a = self.run(a)?;
+                let v_b = self.run(b)?;
+                Ok(match *op {
                     NumOp::Add => v_a + v_b,
                     NumOp::Sub => v_a - v_b,
                     NumOp::Mul => v_a * v_b,
                     NumOp::Exp => v_a.as_num_to_power(v_b),
                     NumOp::Div => v_a / v_b,
                     NumOp::Mod => v_a % v_b,
-                }))
+                })
             }
             Node::UnaryOp(ref op, ref a) => {
-                let v_r_a = self.run(a)?;
-                let v_a = (*v_r_a).clone();
-                Ok(match op {
+                let v_a = self.run(a)?;
+                Ok(match *op {
                     UnaryOp::Minus => to_value(-v_a.to_number()),
                     UnaryOp::Plus => to_value(v_a.to_number()),
                     UnaryOp::IncrementPost => {
-                        self.set_value(a.deref(), to_value(v_a.to_number() + 1.0))?;
-                        v_r_a
+                        let ret = v_a.clone();
+                        self.set_value(a, to_value(v_a.to_number() + 1.0))?;
+                        ret
                     }
-                    UnaryOp::IncrementPre => {
-                        self.set_value(a.deref(), to_value(v_a.to_number() + 1.0))?
-                    }
+                    UnaryOp::IncrementPre => self.set_value(a, to_value(v_a.to_number() + 1.0))?,
                     UnaryOp::DecrementPost => {
-                        self.set_value(a.deref(), to_value(v_a.to_number() - 1.0))?;
-                        v_r_a
+                        let ret = v_a.clone();
+                        self.set_value(a, to_value(v_a.to_number() - 1.0))?;
+                        ret
                     }
-                    UnaryOp::DecrementPre => {
-                        self.set_value(a.deref(), to_value(v_a.to_number() - 1.0))?
-                    }
-                    UnaryOp::Not => Gc::new(!v_a),
+                    UnaryOp::DecrementPre => self.set_value(a, to_value(v_a.to_number() - 1.0))?,
+                    UnaryOp::Not => !v_a,
                     UnaryOp::Tilde => {
                         let num_v_a = v_a.to_number();
                         // NOTE: possible UB: https://github.com/rust-lang/rust/issues/10184
@@ -384,11 +378,9 @@ impl Executor for Interpreter {
                 })
             }
             Node::BinOp(BinOp::Bit(ref op), ref a, ref b) => {
-                let v_r_a = self.run(a)?;
-                let v_r_b = self.run(b)?;
-                let v_a = (*v_r_a).clone();
-                let v_b = (*v_r_b).clone();
-                Ok(Gc::new(match *op {
+                let v_a = self.run(a)?;
+                let v_b = self.run(b)?;
+                Ok(match *op {
                     BitOp::And => v_a & v_b,
                     BitOp::Or => v_a | v_b,
                     BitOp::Xor => v_a ^ v_b,
@@ -396,7 +388,7 @@ impl Executor for Interpreter {
                     BitOp::Shr => v_a >> v_b,
                     // TODO Fix
                     BitOp::UShr => v_a >> v_b,
-                }))
+                })
             }
             Node::BinOp(BinOp::Comp(ref op), ref a, ref b) => {
                 let mut v_r_a = self.run(a)?;
@@ -436,8 +428,8 @@ impl Executor for Interpreter {
             }
             Node::BinOp(BinOp::Assign(ref op), ref a, ref b) => match a.deref() {
                 Node::Local(ref name) => {
-                    let v_a = (*self.realm.environment.get_binding_value(&name)).clone();
-                    let v_b = (*self.run(b)?).clone();
+                    let v_a = self.realm.environment.get_binding_value(&name);
+                    let v_b = self.run(b)?;
                     let value = exec_assign_op(op, v_a, v_b);
                     self.realm
                         .environment
@@ -446,15 +438,15 @@ impl Executor for Interpreter {
                 }
                 Node::GetConstField(ref obj, ref field) => {
                     let v_r_a = self.run(obj)?;
-                    let v_a = (*v_r_a.borrow().get_field_slice(field)).clone();
-                    let v_b = (*self.run(b)?).clone();
+                    let v_a = v_r_a.get_field_slice(field);
+                    let v_b = self.run(b)?;
                     let value = exec_assign_op(op, v_a, v_b);
                     v_r_a
                         .borrow()
                         .set_field_slice(&field.clone(), value.clone());
                     Ok(value)
                 }
-                _ => Ok(Gc::new(ValueData::Undefined)),
+                _ => Ok(Value::undefined()),
             },
             Node::New(ref call) => {
                 let (callee, args) = match call.as_ref() {
@@ -480,13 +472,13 @@ impl Executor for Interpreter {
                         .as_ref()
                         .unwrap()
                         .construct(&mut func_object.clone(), &v_args, self, &mut this),
-                    _ => Ok(Gc::new(ValueData::Undefined)),
+                    _ => Ok(Value::undefined()),
                 }
             }
             Node::Return(ref ret) => {
                 let result = match *ret {
                     Some(ref v) => self.run(v),
-                    None => Ok(Gc::new(ValueData::Undefined)),
+                    None => Ok(Value::undefined()),
                 };
                 // Set flag for return
                 self.is_return = true;
@@ -531,7 +523,7 @@ impl Executor for Interpreter {
                     let (name, value) = var.clone();
                     let val = match value {
                         Some(v) => self.run(&v)?,
-                        None => Gc::new(ValueData::Undefined),
+                        None => Value::undefined(),
                     };
                     self.realm.environment.create_mutable_binding(
                         name.clone(),
@@ -540,14 +532,14 @@ impl Executor for Interpreter {
                     );
                     self.realm.environment.initialize_binding(&name, val);
                 }
-                Ok(Gc::new(ValueData::Undefined))
+                Ok(Value::undefined())
             }
             Node::LetDecl(ref vars) => {
                 for var in vars.iter() {
                     let (name, value) = var.clone();
                     let val = match value {
                         Some(v) => self.run(&v)?,
-                        None => Gc::new(ValueData::Undefined),
+                        None => Value::undefined(),
                     };
                     self.realm.environment.create_mutable_binding(
                         name.clone(),
@@ -556,7 +548,7 @@ impl Executor for Interpreter {
                     );
                     self.realm.environment.initialize_binding(&name, val);
                 }
-                Ok(Gc::new(ValueData::Undefined))
+                Ok(Value::undefined())
             }
             Node::ConstDecl(ref vars) => {
                 for (name, value) in vars.iter() {
@@ -568,7 +560,7 @@ impl Executor for Interpreter {
                     let val = self.run(&value)?;
                     self.realm.environment.initialize_binding(&name, val);
                 }
-                Ok(Gc::new(ValueData::Undefined))
+                Ok(Value::undefined())
             }
             Node::TypeOf(ref val_e) => {
                 let val = self.run(val_e)?;
@@ -596,7 +588,7 @@ impl Executor for Interpreter {
                     )));
                 }
 
-                let mut obj = to_value(None::<()>);
+                let mut obj = Value::null();
                 for (i, item) in list.iter().enumerate() {
                     let val = self.run(item)?;
                     // early return
@@ -616,7 +608,7 @@ impl Executor for Interpreter {
             }
             Node::Spread(ref node) => {
                 // TODO: for now we can do nothing but return the value as-is
-                Ok(Gc::new((*self.run(node)?).clone()))
+                self.run(node)
             }
             ref i => unimplemented!("{}", i),
         }
@@ -643,7 +635,7 @@ impl Interpreter {
                 Some(ref func) => func.call(&mut f.clone(), arguments_list, self, this),
                 None => panic!("Expected function"),
             },
-            _ => Err(Gc::new(ValueData::Undefined)),
+            _ => Err(Value::undefined()),
         }
     }
 
@@ -674,7 +666,7 @@ impl Interpreter {
             }
         }
 
-        Gc::new(ValueData::Undefined)
+        Value::undefined()
     }
 
     /// The abstract operation ToPrimitive takes an input argument and an optional argument PreferredType.
@@ -754,7 +746,7 @@ impl Interpreter {
     pub fn to_object(&mut self, value: &Value) -> ResultValue {
         match *value.deref().borrow() {
             ValueData::Undefined | ValueData::Integer(_) | ValueData::Null => {
-                Err(Gc::new(ValueData::Undefined))
+                Err(Value::undefined())
             }
             ValueData::Boolean(_) => {
                 let proto = self
@@ -836,15 +828,15 @@ impl Interpreter {
 
     /// `extract_array_properties` converts an array object into a rust vector of Values.
     /// This is useful for the spread operator, for any other object an `Err` is returned
-    fn extract_array_properties(&mut self, value: &Value) -> Result<Vec<Gc<ValueData>>, ()> {
+    fn extract_array_properties(&mut self, value: &Value) -> Result<Vec<Value>, ()> {
         if let ValueData::Object(ref x) = *value.deref().borrow() {
             // Check if object is array
             if x.deref().borrow().kind == ObjectKind::Array {
                 let length: i32 =
                     self.value_to_rust_number(&value.get_field_slice("length")) as i32;
-                let values: Vec<Gc<ValueData>> = (0..length)
+                let values: Vec<Value> = (0..length)
                     .map(|idx| value.get_field_slice(&idx.to_string()))
-                    .collect::<Vec<Value>>();
+                    .collect();
                 return Ok(values);
             }
 

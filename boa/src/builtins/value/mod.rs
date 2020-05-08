@@ -23,6 +23,7 @@ use std::{
     ops::{Add, BitAnd, BitOr, BitXor, Deref, DerefMut, Div, Mul, Not, Rem, Shl, Shr, Sub},
     str::FromStr,
 };
+// use std::borrow::{Borrow, BorrowMut};
 
 pub mod conversions;
 pub mod operations;
@@ -34,11 +35,77 @@ pub use operations::*;
 pub type ResultValue = Result<Value, Value>;
 
 /// A Garbage-collected Javascript value as represented in the interpreter.
-pub type Value = Gc<ValueData>;
+#[derive(Debug, Clone, Trace, Finalize, Default)]
+pub struct Value(pub(crate) Gc<ValueData>);
 
-#[inline]
-pub fn undefined() -> Value {
-    Gc::new(ValueData::Undefined)
+impl Value {
+    #[inline]
+    pub fn undefined() -> Self {
+        Self(Gc::new(ValueData::Undefined))
+    }
+
+    #[inline]
+    pub fn null() -> Self {
+        Self(Gc::new(ValueData::Null))
+    }
+
+    #[inline]
+    pub fn string(value: String) -> Self {
+        Self(Gc::new(ValueData::String(value)))
+    }
+
+    #[inline]
+    pub fn rational(value: f64) -> Self {
+        Self(Gc::new(ValueData::Rational(value)))
+    }
+
+    #[inline]
+    pub fn integer(value: i32) -> Self {
+        Self(Gc::new(ValueData::Integer(value)))
+    }
+
+    #[inline]
+    pub fn number(value: f64) -> Self {
+        Self::rational(value)
+    }
+
+    #[inline]
+    pub fn boolean(value: bool) -> Self {
+        Self(Gc::new(ValueData::Boolean(value)))
+    }
+
+    #[inline]
+    pub fn data(&self) -> &ValueData {
+        &*self.0
+    }
+
+    // #[inline]
+    // pub fn data_mut(&self) -> &mut ValueData {
+    // 	self.0.borrow_mut()
+    // }
+
+    #[inline]
+    pub fn from_json(json: JSONValue) -> Self {
+        Self(Gc::new(ValueData::from_json(json)))
+    }
+
+    pub fn as_num_to_power(&self, other: Self) -> Self {
+        Self::rational(self.to_number().powf(other.to_number()))
+    }
+}
+
+impl Deref for Value {
+    type Target = ValueData;
+
+    fn deref(&self) -> &Self::Target {
+        self.data()
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
+    }
 }
 
 /// A Javascript value
@@ -69,10 +136,10 @@ impl ValueData {
             let obj_proto = glob.get_field_slice("Object").get_field_slice(PROTOTYPE);
 
             let obj = Object::create(obj_proto);
-            Gc::new(Self::Object(Box::new(GcCell::new(obj))))
+            Value(Gc::new(Self::Object(Box::new(GcCell::new(obj)))))
         } else {
             let obj = Object::default();
-            Gc::new(Self::Object(Box::new(GcCell::new(obj))))
+            Value(Gc::new(Self::Object(Box::new(GcCell::new(obj)))))
         }
     }
 
@@ -85,7 +152,7 @@ impl ValueData {
         obj.internal_slots
             .insert(INSTANCE_PROTOTYPE.to_string(), proto);
 
-        Gc::new(Self::Object(Box::new(GcCell::new(obj))))
+        Value(Gc::new(Self::Object(Box::new(GcCell::new(obj)))))
     }
 
     /// This will tell us if we can exten an object or not, not properly implemented yet
@@ -338,12 +405,12 @@ impl ValueData {
                 let hash = obj.clone();
                 hash.into_inner()
             }
-            _ => return Gc::new(Self::Undefined),
+            _ => return Value::undefined(),
         };
 
         match obj.internal_slots.get(field) {
             Some(val) => val.clone(),
-            None => Gc::new(Self::Undefined),
+            None => Value::undefined(),
         }
     }
 
@@ -373,11 +440,11 @@ impl ValueData {
                             val.clone()
                         }
                     }
-                    None => Gc::new(Self::Undefined),
+                    None => Value::undefined(),
                 }
             }
             Self::Symbol(_) => unimplemented!(),
-            _ => Gc::new(Self::Undefined),
+            _ => Value::undefined(),
         }
     }
 
@@ -459,7 +526,7 @@ impl ValueData {
     pub fn get_field_slice(&self, field: &str) -> Value {
         // get_field used to accept strings, but now Symbols accept it needs to accept a value
         // So this function will now need to Box strings back into values (at least for now)
-        let f = Gc::new(Self::String(field.to_string()));
+        let f = Value::string(field.to_string());
         self.get_field(f)
     }
 
@@ -495,7 +562,7 @@ impl ValueData {
     pub fn set_field_slice(&self, field: &str, val: Value) -> Value {
         // set_field used to accept strings, but now Symbols accept it needs to accept a value
         // So this function will now need to Box strings back into values (at least for now)
-        let f = Gc::new(Self::String(field.to_string()));
+        let f = Value::string(field.to_string());
         self.set_field(f, val)
     }
 
@@ -631,10 +698,6 @@ impl ValueData {
                 }
             }
         }
-    }
-
-    pub fn as_num_to_power(&self, other: Self) -> Self {
-        Self::Rational(self.to_number().powf(other.to_number()))
     }
 }
 

@@ -24,7 +24,7 @@ use crate::{
             internal_methods_trait::ObjectInternalMethods, Object, ObjectKind, INSTANCE_PROTOTYPE,
             PROTOTYPE,
         },
-        value::{to_value, undefined, ResultValue, Value, ValueData},
+        value::{to_value, ResultValue, Value, ValueData},
     },
     exec::Interpreter,
 };
@@ -52,7 +52,7 @@ pub fn call_symbol(_: &mut Value, args: &[Value], ctx: &mut Interpreter) -> Resu
     // Set description which should either be undefined or a string
     let desc_string = match args.get(0) {
         Some(value) => to_value(value.to_string()),
-        None => undefined(),
+        None => Value::undefined(),
     };
 
     sym_instance.set_internal_slot("Description", desc_string);
@@ -66,9 +66,9 @@ pub fn call_symbol(_: &mut Value, args: &[Value], ctx: &mut Interpreter) -> Resu
         .get_field_slice(PROTOTYPE);
     sym_instance.set_internal_slot(INSTANCE_PROTOTYPE, proto);
 
-    Ok(Gc::new(ValueData::Symbol(Box::new(GcCell::new(
+    Ok(Value(Gc::new(ValueData::Symbol(Box::new(GcCell::new(
         sym_instance,
-    )))))
+    ))))))
 }
 
 /// `Symbol.prototype.toString()`

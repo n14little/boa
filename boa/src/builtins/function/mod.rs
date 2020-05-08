@@ -16,7 +16,7 @@ use crate::{
         array,
         object::{Object, ObjectInternalMethods, ObjectKind, PROTOTYPE},
         property::Property,
-        value::{to_value, undefined, ResultValue, Value, ValueData},
+        value::{to_value, ResultValue, Value, ValueData},
     },
     environment::lexical_environment::{new_function_environment, Environment},
     exec::Executor,
@@ -329,7 +329,7 @@ pub fn create_function_prototype() {
 pub fn create_unmapped_arguments_object(arguments_list: &[Value]) -> Value {
     let len = arguments_list.len();
     let mut obj = Object::default();
-    obj.set_internal_slot("ParameterMap", undefined());
+    obj.set_internal_slot("ParameterMap", Value::undefined());
     // Set length
     let mut length = Property::default();
     length = length.writable(true).value(to_value(len));

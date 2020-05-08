@@ -19,9 +19,7 @@ mod tests;
 use crate::{
     builtins::{
         object::InternalState,
-        value::{
-            display_obj, from_value, to_value, undefined, FromValue, ResultValue, Value, ValueData,
-        },
+        value::{display_obj, from_value, to_value, FromValue, ResultValue, Value, ValueData},
     },
     exec::Interpreter,
 };
@@ -160,7 +158,7 @@ pub fn assert(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultVa
         });
     }
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.clear()`
@@ -178,7 +176,7 @@ pub fn clear(this: &mut Value, _: &[Value], _: &mut Interpreter) -> ResultValue 
         state.groups.clear();
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.debug(...data)`
@@ -193,7 +191,7 @@ pub fn clear(this: &mut Value, _: &[Value], _: &mut Interpreter) -> ResultValue 
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/console/debug
 pub fn debug(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     this.with_internal_state_ref(|state| logger(LogMessage::Log(formatter(&args[..])), state));
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.error(...data)`
@@ -208,7 +206,7 @@ pub fn debug(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultVal
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/console/error
 pub fn error(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     this.with_internal_state_ref(|state| logger(LogMessage::Error(formatter(&args[..])), state));
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.info(...data)`
@@ -223,7 +221,7 @@ pub fn error(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultVal
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/console/info
 pub fn info(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     this.with_internal_state_ref(|state| logger(LogMessage::Info(formatter(&args[..])), state));
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.log(...data)`
@@ -238,7 +236,7 @@ pub fn info(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValu
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/console/log
 pub fn log(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     this.with_internal_state_ref(|state| logger(LogMessage::Log(formatter(&args[..])), state));
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.trace(...data)`
@@ -264,7 +262,7 @@ pub fn trace(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultVal
         });
     }
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.warn(...data)`
@@ -279,7 +277,7 @@ pub fn trace(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultVal
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/console/warn
 pub fn warn(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     this.with_internal_state_ref(|state| logger(LogMessage::Warn(formatter(&args[..])), state));
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.count(label)`
@@ -303,7 +301,7 @@ pub fn count(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultVal
         logger(LogMessage::Info(format!("{} {}", msg, c)), state);
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.countReset(label)`
@@ -325,7 +323,7 @@ pub fn count_reset(this: &mut Value, args: &[Value], _: &mut Interpreter) -> Res
         logger(LogMessage::Warn(format!("countReset {}", label)), state);
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// Returns current system time in ms.
@@ -361,7 +359,7 @@ pub fn time(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValu
         }
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.timeLog(label, ...data)`
@@ -393,7 +391,7 @@ pub fn time_log(this: &mut Value, args: &[Value], _: &mut Interpreter) -> Result
         }
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.timeEnd(label)`
@@ -424,7 +422,7 @@ pub fn time_end(this: &mut Value, args: &[Value], _: &mut Interpreter) -> Result
         }
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.group(...data)`
@@ -445,7 +443,7 @@ pub fn group(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultVal
         state.groups.push(group_label);
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.groupEnd(label)`
@@ -463,7 +461,7 @@ pub fn group_end(this: &mut Value, _: &[Value], _: &mut Interpreter) -> ResultVa
         state.groups.pop();
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// `console.dir(item, options)`
@@ -478,13 +476,14 @@ pub fn group_end(this: &mut Value, _: &[Value], _: &mut Interpreter) -> ResultVa
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/API/console/dir
 pub fn dir(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     this.with_internal_state_mut(|state: &mut ConsoleState| {
+        let undefined = Value::undefined();
         logger(
-            LogMessage::Info(display_obj(args.get(0).unwrap_or(&undefined()), true)),
+            LogMessage::Info(display_obj(args.get(0).unwrap_or(&undefined), true)),
             state,
         );
     });
 
-    Ok(undefined())
+    Ok(Value::undefined())
 }
 
 /// Create a new `console` object

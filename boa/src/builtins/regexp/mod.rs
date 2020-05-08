@@ -11,14 +11,13 @@
 
 use std::ops::Deref;
 
-use gc::Gc;
 use regex::Regex;
 
 use crate::{
     builtins::{
         object::{InternalState, Object, ObjectInternalMethods, ObjectKind, PROTOTYPE},
         property::Property,
-        value::{from_value, to_value, undefined, FromValue, ResultValue, Value, ValueData},
+        value::{from_value, to_value, FromValue, ResultValue, Value, ValueData},
     },
     exec::Interpreter,
 };
@@ -70,7 +69,7 @@ fn get_argument<T: FromValue>(args: &[Value], idx: usize) -> Result<T, Value> {
 /// Create a new `RegExp`
 pub fn make_regexp(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     if args.is_empty() {
-        return Err(undefined());
+        return Err(Value::undefined());
     }
     let mut regex_body = String::new();
     let mut regex_flags = String::new();
@@ -94,7 +93,7 @@ pub fn make_regexp(this: &mut Value, args: &[Value], _: &mut Interpreter) -> Res
                 }
             }
         }
-        _ => return Err(undefined()),
+        _ => return Err(Value::undefined()),
     }
     // if a second argument is given and it's a string, use it as flags
     match args.get(1) {
@@ -165,7 +164,7 @@ pub fn make_regexp(this: &mut Value, args: &[Value], _: &mut Interpreter) -> Res
     // This value is used by console.log and other routines to match Object type
     // to its Javascript Identifier (global constructor method name)
     this.set_kind(ObjectKind::Ordinary);
-    this.set_internal_slot("RegExpMatcher", undefined());
+    this.set_internal_slot("RegExpMatcher", Value::undefined());
     this.set_internal_slot("OriginalSource", to_value(regex_body));
     this.set_internal_slot("OriginalFlags", to_value(regex_flags));
 
@@ -316,7 +315,7 @@ pub fn test(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValu
             }
             false
         };
-        Ok(Gc::new(ValueData::Boolean(result)))
+        Ok(Value::boolean(result))
     });
     this.set_field_slice("lastIndex", to_value(last_index));
     result
@@ -355,7 +354,7 @@ pub fn exec(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValu
                         arg_str.get(start..end).expect("Could not get slice"),
                     ));
                 } else {
-                    result.push(undefined());
+                    result.push(Value::undefined());
                 }
             }
             let result = to_value(result);
@@ -366,7 +365,7 @@ pub fn exec(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValu
             if regex.use_last_index {
                 last_index = 0;
             }
-            Gc::new(ValueData::Null)
+            Value::null()
         };
         Ok(result)
     });
@@ -393,7 +392,7 @@ pub fn r#match(this: &mut Value, arg: String, ctx: &mut Interpreter) -> ResultVa
             matches.push(to_value(mat.as_str()));
         }
         if matches.is_empty() {
-            return Ok(Gc::new(ValueData::Null));
+            return Ok(Value::null());
         }
         Ok(to_value(matches))
     } else {
@@ -438,7 +437,7 @@ pub fn match_all(this: &mut Value, arg_str: String) -> ResultValue {
                     .iter()
                     .map(|group| match group {
                         Some(g) => to_value(g.as_str()),
-                        None => undefined(),
+                        None => Value::undefined(),
                     })
                     .collect::<Vec<Value>>();
 

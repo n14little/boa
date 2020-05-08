@@ -16,11 +16,10 @@ use crate::{
     builtins::{
         object::{Object, ObjectInternalMethods, ObjectKind, INSTANCE_PROTOTYPE, PROTOTYPE},
         property::Property,
-        value::{from_value, to_value, undefined, ResultValue, Value, ValueData},
+        value::{from_value, to_value, ResultValue, Value, ValueData},
     },
     exec::Interpreter,
 };
-use gc::Gc;
 use std::borrow::Borrow;
 use std::cmp::{max, min};
 use std::ops::Deref;
@@ -120,7 +119,7 @@ pub fn make_array(this: &mut Value, args: &[Value], ctx: &mut Interpreter) -> Re
             length = from_value::<i32>(args[0].clone()).expect("Could not convert argument to i32");
             // TODO: It should not create an array of undefineds, but an empty array ("holy" array in V8) with length `n`.
             for n in 0..length {
-                this.set_field_slice(&n.to_string(), Gc::new(ValueData::Undefined));
+                this.set_field_slice(&n.to_string(), Value::undefined());
             }
         }
         1 if args[0].is_double() => {
@@ -158,12 +157,12 @@ pub fn make_array(this: &mut Value, args: &[Value], ctx: &mut Interpreter) -> Re
 /// [spec]: https://tc39.es/ecma262/#sec-array.isarray
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 pub fn is_array(_this: &mut Value, args: &[Value], _interpreter: &mut Interpreter) -> ResultValue {
-    let value_true = Gc::new(ValueData::Boolean(true));
-    let value_false = Gc::new(ValueData::Boolean(false));
+    let value_true = Value::boolean(true);
+    let value_false = Value::boolean(false);
 
     match args.get(0) {
         Some(arg) => {
-            match *(*arg).clone() {
+            match arg.data() {
                 // 1.
                 ValueData::Object(ref obj) => {
                     // 2.
@@ -250,7 +249,7 @@ pub fn pop(this: &mut Value, _: &[Value], _: &mut Interpreter) -> ResultValue {
     let curr_length: i32 =
         from_value(this.get_field_slice("length")).expect("Could not convert argument to i32");
     if curr_length < 1 {
-        return Ok(Gc::new(ValueData::Undefined));
+        return Ok(Value::undefined());
     }
     let pop_index = curr_length.wrapping_sub(1);
     let pop_value: Value = this.get_field_slice(&pop_index.to_string());
@@ -277,7 +276,7 @@ pub fn for_each(this: &mut Value, args: &[Value], interpreter: &mut Interpreter)
     }
 
     let callback_arg = args.get(0).expect("Could not get `callbackFn` argument.");
-    let mut this_arg = args.get(1).cloned().unwrap_or_else(undefined);
+    let mut this_arg = args.get(1).cloned().unwrap_or_else(Value::undefined);
 
     let length: i32 =
         from_value(this.get_field_slice("length")).expect("Could not get `length` property.");
@@ -289,7 +288,7 @@ pub fn for_each(this: &mut Value, args: &[Value], interpreter: &mut Interpreter)
         interpreter.call(callback_arg, &mut this_arg, &arguments)?;
     }
 
-    Ok(Gc::new(ValueData::Undefined))
+    Ok(Value::undefined())
 }
 
 /// `Array.prototype.join( separator )`
@@ -432,7 +431,7 @@ pub fn shift(this: &mut Value, _: &[Value], _: &mut Interpreter) -> ResultValue 
         let to = (k.wrapping_sub(1)).to_string();
 
         let from_value = this.get_field_slice(&from);
-        if from_value == Gc::new(ValueData::Undefined) {
+        if from_value == Value::undefined() {
             this.remove_prop(&to);
         } else {
             this.set_field_slice(&to, from_value);
@@ -469,7 +468,7 @@ pub fn unshift(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultV
             let to = (k.wrapping_add(arg_c).wrapping_sub(1)).to_string();
 
             let from_value = this.get_field_slice(&from);
-            if from_value == Gc::new(ValueData::Undefined) {
+            if from_value == Value::undefined() {
                 this.remove_prop(&to);
             } else {
                 this.set_field_slice(&to, from_value);
@@ -513,7 +512,7 @@ pub fn every(this: &mut Value, args: &[Value], interpreter: &mut Interpreter) ->
     let mut this_arg = if args.len() > 1 {
         args[1].clone()
     } else {
-        Gc::new(ValueData::Undefined)
+        Value::undefined()
     };
     let mut i = 0;
     let max_len: i32 = from_value(this.get_field_slice("length")).unwrap();
@@ -551,24 +550,24 @@ pub fn map(this: &mut Value, args: &[Value], interpreter: &mut Interpreter) -> R
         ));
     }
 
-    let callback = args.get(0).cloned().unwrap_or_else(undefined);
-    let mut this_val = args.get(1).cloned().unwrap_or_else(undefined);
+    let callback = args.get(0).cloned().unwrap_or_else(Value::undefined);
+    let mut this_val = args.get(1).cloned().unwrap_or_else(Value::undefined);
 
     let length: i32 =
         from_value(this.get_field_slice("length")).expect("Could not get `length` property.");
 
     let new = new_array(&interpreter)?;
 
-    let values = (0..length)
+    let values: Vec<Value> = (0..length)
         .map(|idx| {
             let element = this.get_field_slice(&idx.to_string());
             let args = [element, to_value(idx), new.clone()];
 
             interpreter
                 .call(&callback, &mut this_val, &args)
-                .unwrap_or_else(|_| undefined())
+                .unwrap_or_else(|_| Value::undefined())
         })
-        .collect::<Vec<Value>>();
+        .collect();
 
     construct_array(&new, &values)
 }
@@ -706,7 +705,7 @@ pub fn find(this: &mut Value, args: &[Value], interpreter: &mut Interpreter) -> 
     let mut this_arg = if args.len() > 1 {
         args[1].clone()
     } else {
-        Gc::new(ValueData::Undefined)
+        Value::undefined()
     };
     let len: i32 = from_value(this.get_field_slice("length")).unwrap();
     for i in 0..len {
@@ -717,7 +716,7 @@ pub fn find(this: &mut Value, args: &[Value], interpreter: &mut Interpreter) -> 
             return Ok(element);
         }
     }
-    Ok(Gc::new(ValueData::Undefined))
+    Ok(Value::undefined())
 }
 
 /// `Array.prototype.findIndex( predicate [ , thisArg ] )`
@@ -741,10 +740,7 @@ pub fn find_index(this: &mut Value, args: &[Value], interpreter: &mut Interprete
 
     let predicate_arg = args.get(0).expect("Could not get `predicate` argument.");
 
-    let mut this_arg = args
-        .get(1)
-        .cloned()
-        .unwrap_or_else(|| Gc::new(ValueData::Undefined));
+    let mut this_arg = args.get(1).cloned().unwrap_or_else(Value::undefined);
 
     let length: i32 =
         from_value(this.get_field_slice("length")).expect("Could not get `length` property.");
@@ -756,11 +752,11 @@ pub fn find_index(this: &mut Value, args: &[Value], interpreter: &mut Interprete
         let result = interpreter.call(predicate_arg, &mut this_arg, &arguments)?;
 
         if result.is_true() {
-            return Ok(Gc::new(ValueData::Rational(f64::from(i))));
+            return Ok(Value::rational(f64::from(i)));
         }
     }
 
-    Ok(Gc::new(ValueData::Rational(f64::from(-1))))
+    Ok(Value::rational(f64::from(-1)))
 }
 
 /// `Array.prototype.fill( value[, start[, end]] )`
@@ -776,7 +772,7 @@ pub fn find_index(this: &mut Value, args: &[Value], interpreter: &mut Interprete
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/fill
 pub fn fill(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
     let len: i32 = from_value(this.get_field_slice("length")).expect("Could not get argument");
-    let default_value = undefined();
+    let default_value = Value::undefined();
     let value = args.get(0).unwrap_or(&default_value);
     let relative_start = args.get(1).unwrap_or(&default_value).to_number() as i32;
     let relative_end_val = args.get(2).unwrap_or(&default_value);
@@ -814,10 +810,7 @@ pub fn fill(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValu
 /// [spec]: https://tc39.es/ecma262/#sec-array.prototype.includes
 /// [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 pub fn includes_value(this: &mut Value, args: &[Value], _: &mut Interpreter) -> ResultValue {
-    let search_element = args
-        .get(0)
-        .cloned()
-        .unwrap_or_else(|| Gc::new(ValueData::Undefined));
+    let search_element = args.get(0).cloned().unwrap_or_else(Value::undefined);
 
     let length: i32 =
         from_value(this.get_field_slice("length")).expect("Could not get `length` property.");
@@ -903,8 +896,8 @@ pub fn filter(this: &mut Value, args: &[Value], interpreter: &mut Interpreter) -
         ));
     }
 
-    let callback = args.get(0).cloned().unwrap_or_else(undefined);
-    let mut this_val = args.get(1).cloned().unwrap_or_else(undefined);
+    let callback = args.get(0).cloned().unwrap_or_else(Value::undefined);
+    let mut this_val = args.get(1).cloned().unwrap_or_else(Value::undefined);
 
     let length: i32 =
         from_value(this.get_field_slice("length")).expect("Could not get `length` property.");
@@ -919,7 +912,7 @@ pub fn filter(this: &mut Value, args: &[Value], interpreter: &mut Interpreter) -
 
             let callback_result = interpreter
                 .call(&callback, &mut this_val, &args)
-                .unwrap_or_else(|_| undefined());
+                .unwrap_or_else(|_| Value::undefined());
 
             if callback_result.is_true() {
                 Some(element)
@@ -957,7 +950,7 @@ pub fn some(this: &mut Value, args: &[Value], interpreter: &mut Interpreter) -> 
     let mut this_arg = if args.len() > 1 {
         args[1].clone()
     } else {
-        Gc::new(ValueData::Undefined)
+        Value::undefined()
     };
     let mut i = 0;
     let max_len: i32 = from_value(this.get_field_slice("length")).unwrap();
