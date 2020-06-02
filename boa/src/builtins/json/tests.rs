@@ -236,3 +236,17 @@ fn json_parse_object_with_reviver() {
     );
     assert_eq!(result, r#"{"firstname":"boa","lastname":"interpreter"}"#);
 }
+
+#[test]
+fn json_fields_should_be_enumerable() {
+    let realm = Realm::create();
+    let mut engine = Interpreter::new(realm);
+    let actual = forward(&mut engine, r#"
+        var a = JSON.parse('{"x":0}');
+        a.x=2;
+        Object.keys(a);
+    "#);
+    let expected = forward(&mut engine, r#"["x"]"#);
+
+    assert_eq!(actual, expected);
+}
