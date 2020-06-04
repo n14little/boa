@@ -19,8 +19,8 @@ use crate::builtins::{
     property::Property,
     value::{ResultValue, Value, ValueData},
 };
-use gc::Gc;
 use crate::exec::Interpreter;
+use gc::Gc;
 use serde_json::{self, Value as JSONValue};
 
 #[cfg(test)]
@@ -43,7 +43,7 @@ pub fn parse(_: &mut Value, args: &[Value], ctx: &mut Interpreter) -> ResultValu
         &ctx.to_string(args.get(0).expect("cannot get argument for JSON.parse"))?,
     ) {
         Ok(json) => {
-            let j = Value(Gc::new(ValueData::from_json(json)));
+            let j = Value(Gc::new(ValueData::from_json(json, ctx)));
             match args.get(1) {
                 Some(reviver) if reviver.is_function() => {
                     let mut holder = Value::new_object(None);

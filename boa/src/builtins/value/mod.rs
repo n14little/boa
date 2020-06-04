@@ -13,6 +13,7 @@ use crate::builtins::{
     },
     property::Property,
 };
+use crate::exec::Interpreter;
 use crate::syntax::ast::bigint::BigInt;
 use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use serde_json::{map::Map, Number as JSONNumber, Value as JSONValue};
@@ -674,7 +675,7 @@ impl ValueData {
     }
 
     /// Convert from a JSON value to a JS value
-    pub fn from_json(json: JSONValue) -> Self {
+    pub fn from_json(json: JSONValue, interpreter: &mut Interpreter) -> Self {
         match json {
             JSONValue::Number(v) => {
                 Self::Rational(v.as_f64().expect("Could not convert value to f64"))
@@ -687,7 +688,10 @@ impl ValueData {
                     new_obj.properties.insert(
                         idx.to_string(),
                         Property::default()
-                            .value(Value(Gc::new(ValueData::from_json(json.clone()))))
+                            .value(Value(Gc::new(ValueData::from_json(
+                                json.clone(),
+                                interpreter,
+                            ))))
                             .writable(true)
                             .configurable(true),
                     );
@@ -704,7 +708,10 @@ impl ValueData {
                     new_obj.properties.insert(
                         key.clone(),
                         Property::default()
-                            .value(Value(Gc::new(ValueData::from_json(json.clone()))))
+                            .value(Value(Gc::new(ValueData::from_json(
+                                json.clone(),
+                                interpreter,
+                            ))))
                             .writable(true)
                             .configurable(true),
                     );
