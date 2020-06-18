@@ -404,11 +404,11 @@ fn round() {
 
     eprintln!("{}", forward(&mut engine, init));
 
-    let a = forward_val(&mut engine, "a").unwrap();
-    let b = forward_val(&mut engine, "b").unwrap();
+    let a = forward(&mut engine, "a");
+    let b = forward(&mut engine, "b");
 
-    assert_eq!(a.to_number(), 21.0);
-    assert_eq!(b.to_number(), -20.0);
+    assert_eq!(a, "21");
+    assert_eq!(b, "-20");
 }
 
 #[test]
