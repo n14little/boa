@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["exec_assign_op",""]],"struct":[["Interpreter","A Javascript intepreter"]],"trait":[["Executor","An execution engine"]]});
+initSidebarItems({"enum":[["InterpreterState",""]],"struct":[["Interpreter","A Javascript intepreter"]],"trait":[["Executable",""]]});

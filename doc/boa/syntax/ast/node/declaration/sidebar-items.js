@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DeclarationList",""]],"mod":[["arrow_function_decl",""],["async_function_decl","Async Function Declaration."],["async_function_expr","Async Function Expression."],["function_decl",""],["function_expr",""]],"struct":[["Declaration","Individual declaration."]]});

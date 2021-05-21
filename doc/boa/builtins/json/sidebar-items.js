@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["create","Create a new `JSON` object."],["init","Initialise the `JSON` object on the global object."],["parse","`JSON.parse( text[, reviver] )`"],["stringify","`JSON.stringify( value[, replacer[, space]] )`"]]});
+initSidebarItems({"fn":[["json_to_pretty_string",""]],"struct":[["Json","JavaScript `JSON` global object."]]});
